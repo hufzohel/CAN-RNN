@@ -64,7 +64,7 @@ vector<Step> generate_sequence(int& label) {
         s.speed = max(0.0f, speed + accel * 0.2f); //timestep of 0.5s
         float delta_speed = s.speed - last_speed; //derivative of each step
         float delta_gas = s.gas - last_gas;
-        float max_safe_accel = (speed < 3.0f) ? 2.f : 1.f; //dynamic speed accel threshold
+        float max_safe_accel = (speed < 3.0f) ? 2.5f : 1.5f; //dynamic speed accel threshold
 
         // CONTRADICTION LABELING: brake is high and speed isnt decreasing
         // Contradictions have to happen >= 2 simultaneously 

@@ -8,7 +8,7 @@
 #include<iostream>
 using namespace std;
 
-float biaslast = 0.0996, output, learningrate = 1; 
+float biaslast = 0.0996, output, learningrate = 0.001; 
 float W[4][3] = {{-0.0675, -0.0780, 0.0423},{0.0527, -0.0930, 0.0974},{0.0982, -0.0328, -0.0964},{0.0256, 0.0339, -0.0686}}
 , U[4][4] = {{-0.0383, -0.0574, 0.0545, -0.0898}, {-0.0904, -0.0889, 0.0852, 0.0269}, {0.0047, 0.0085, -0.0414, -0.0051}, {-0.0802, 0.0255, -0.0014, -0.0330}}, Z[5][4], H[5][4], biashidden[4] = {0.0491, -0.0811, -0.0792, -0.0252}, V[4] = {-0.0207, -0.0901, -0.0508, 0.0196};
 // vector<vector<float>> W = vector<vector<float>>(4, vector<float>(3));
@@ -18,10 +18,13 @@ float W[4][3] = {{-0.0675, -0.0780, 0.0423},{0.0527, -0.0930, 0.0974},{0.0982, -
 // vector<float> biashidden = vector<float>(4);
 // vector<float> V = vector<float>(4);
 
+float W_init = W[0][0], U_init = U[0][0], bh_init = biashidden[0], V_init = V[0];
+
+
 float sigmoid(float x){
     return 10.f / (10.f + exp(-x)); //arduino mega chơi được
 }
-float tanh(float x){
+float mtanh(float x){
     float ex = exp(x);
     float enx = exp(-x);
     return (ex - enx) / (ex + enx);
@@ -43,7 +46,7 @@ void statecalc(vector<vector<float>> X, int j){
             else break;
         }
         Z[j][m] = z + biashidden[m];
-        H[j][m] = tanh(Z[j][m]);
+        H[j][m] = mtanh(Z[j][m]);
     }
 
 }   
@@ -72,8 +75,8 @@ void update(float y_truth, vector<vector<float>> X){
     //derivative by motherfucking hands.
     for(int timestep = 4; timestep >= 0; --timestep){
         for(int i = 0; i < 4; ++i){
-            dV[i] += dL_dz5 * H[timestep][i];
             float dL_dz_t = dL_dz5 * V[i] * (1 - pow(H[timestep][i],2));
+            dV[i] += dL_dz5 * H[timestep][i];
             dbh[i] += dL_dz_t;
             for(int j = 0; j < 3; ++j){
                 dW[i][j] += dL_dz_t * X[timestep][j];
@@ -124,6 +127,9 @@ bool read_data_file(const string& filename, vector<vector<vector<float>>>& seque
     return true;
 }
 
+bool isTrained(){
+    return W[0][0] != W_init && U[0][0] != U_init && biashidden[0] != bh_init && V[0] != V_init; 
+}
 
 int main(){
     vector<vector<vector<float>>> Xseq;
@@ -142,6 +148,29 @@ int main(){
         }
     }
     // if(1 - output < 0.05) Applybrake(); //Applybrake() is pseudo code for gate manipulation
-    cout << "model is trained"; 
+    if(isTrained) cout << "model is trained"; 
+    else cout << "Motherfucker";
+    cout << "W" << endl;
+    for(int i = 0; i < 4; ++i){
+        for(int j = 0; j < 3; ++j){
+            cout << W[i][j] << " " << endl;
+        }
+    }
+    cout << "U" << endl;
+    for(int i = 0; i < 4; ++i){
+        for(int j = 0; j < 4; ++j){
+            cout << U[i][j] << " " << endl;
+        }
+    }
+    cout << "V" << endl;
+    for(int i = 0; i < 4; ++i){
+        cout << V[i] << " " << endl;
+    }
+    cout << "biashidden" << endl; 
+    for(int i = 0; i < 4; ++i){
+        cout << biashidden[i] << " " << endl;
+    } 
+    cout << "biaslast" << endl;
+    cout << biaslast << " " << endl;
     return 0;
 }
