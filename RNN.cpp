@@ -11,12 +11,6 @@ using namespace std;
 float biaslast = 0.0996, output, learningrate = 0.001; 
 float W[4][3] = {{-0.0675, -0.0780, 0.0423},{0.0527, -0.0930, 0.0974},{0.0982, -0.0328, -0.0964},{0.0256, 0.0339, -0.0686}}
 , U[4][4] = {{-0.0383, -0.0574, 0.0545, -0.0898}, {-0.0904, -0.0889, 0.0852, 0.0269}, {0.0047, 0.0085, -0.0414, -0.0051}, {-0.0802, 0.0255, -0.0014, -0.0330}}, Z[5][4], H[5][4], biashidden[4] = {0.0491, -0.0811, -0.0792, -0.0252}, V[4] = {-0.0207, -0.0901, -0.0508, 0.0196};
-// vector<vector<float>> W = vector<vector<float>>(4, vector<float>(3));
-// vector<vector<float>> U = vector<vector<float>>(4, vector<float>(4));
-// vector<vector<float>> Z = vector<vector<float>>(5, vector<float>(4));
-// vector<vector<float>> H = vector<vector<float>>(5, vector<float>(4));
-// vector<float> biashidden = vector<float>(4);
-// vector<float> V = vector<float>(4);
 
 float W_init = W[0][0], U_init = U[0][0], bh_init = biashidden[0], V_init = V[0];
 
@@ -25,16 +19,13 @@ float sigmoid(float x){
     return 1.f / (1.f + exp(-x)); //arduino mega chơi được
 }
 float mtanh(float x){
+    if (x > 20.0f) return 1.0f;
+    if (x < -20.0f) return -1.0f;
     float ex = exp(x);
     float enx = exp(-x);
     return (ex - enx) / (ex + enx);
 }
 void statecalc(vector<vector<float>> X, int j){
-    // for(int i = 0; i < 4; ++i){
-    //     if(j != 0) Z[j][i] = W[j][i] * X[j][i] + U[j][i] * 0 + biashidden[i]; //first iteration, prev hidden state = 0
-    //     else Z[j][i] = W[j][i] * X[j][i] + U[j][i] * H[j][i] + biashidden[i];
-    //     H[j][i] = tanh(Z[j][i]);   
-    // }
 
     for(int m = 0; m < 4; ++m){
         float z = 0;
@@ -51,14 +42,12 @@ void statecalc(vector<vector<float>> X, int j){
 
 }   
 float brakeornobrake(int j){
-    output = 0;
     float z5 = 0;
     for(int i = 0; i < 4; ++i){
         z5 += V[i] * H[j][i];
     }
     z5 += biaslast;
-    float h5 = sigmoid(z5);
-    output = output > h5 ? output : h5;
+    output = sigmoid(z5);
     return output;
 }
 
@@ -75,10 +64,7 @@ float clip(float x, float limit = 10.0f) {
 void update(float y_truth, vector<vector<float>> X){
     float dV[4] = {0}, dW[4][3] = {0}, dU[4][4] = {0}, dbh[4] = {0};
     float dL_dz5 = (output - y_truth);
-    //gradient compute - if bug probably here
-    //use last output instead of each iteration output for 
-    //loss computation because model design for sequence decision
-    //derivative by motherfucking hands.
+    
     for(int timestep = 4; timestep >= 0; --timestep){
         for(int i = 0; i < 4; ++i){
             float dL_dz_t = dL_dz5 * V[i] * (1 - pow(H[timestep][i],2));
@@ -89,7 +75,6 @@ void update(float y_truth, vector<vector<float>> X){
             }
             for(int j = 0; j < 4; ++j){
                 if(timestep != 0) dU[i][j] += clip(dL_dz_t * H[timestep-1][j]);
-                // else dU[i][j] += dL_dz_t * 0; //prev hidden state at first iteration = 0
             }
         }
     }
@@ -147,8 +132,8 @@ int main(){
         for(int j = 0; j < Xseq.size(); ++j){
             for(int m = 0; m < 5; ++m){
                 statecalc(Xseq[j], m);
-                brakeornobrake(m);
             }
+            brakeornobrake(4);
             float loss = Lossfunction(output, lbl[j]);
             cout << "Epoch " << i << " | Loss: " << loss << " | Output: " << output << endl;
             update(lbl[j], Xseq[j]);
