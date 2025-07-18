@@ -22,7 +22,7 @@ float W_init = W[0][0], U_init = U[0][0], bh_init = biashidden[0], V_init = V[0]
 
 
 float sigmoid(float x){
-    return 10.f / (10.f + exp(-x)); //arduino mega chơi được
+    return 1.f / (1.f + exp(-x)); //arduino mega chơi được
 }
 float mtanh(float x){
     float ex = exp(x);
@@ -51,7 +51,8 @@ void statecalc(vector<vector<float>> X, int j){
 
 }   
 float brakeornobrake(int j){
-    float z5;
+    output = 0;
+    float z5 = 0;
     for(int i = 0; i < 4; ++i){
         z5 += V[i] * H[j][i];
     }
@@ -63,7 +64,12 @@ float brakeornobrake(int j){
 
 
 float Lossfunction(float y_pred, float y_truth){
+    y_pred = max(1e-7f, min(1.f - 1e-7f, y_pred));
     return -(y_truth * log(y_pred) + (1-y_truth) * log(1-y_pred));
+}
+
+float clip(float x, float limit = 10.0f) {
+    return x > limit ? limit : (x < -limit ? -limit : x);
 }
 
 void update(float y_truth, vector<vector<float>> X){
@@ -76,14 +82,14 @@ void update(float y_truth, vector<vector<float>> X){
     for(int timestep = 4; timestep >= 0; --timestep){
         for(int i = 0; i < 4; ++i){
             float dL_dz_t = dL_dz5 * V[i] * (1 - pow(H[timestep][i],2));
-            dV[i] += dL_dz5 * H[timestep][i];
-            dbh[i] += dL_dz_t;
+            dV[i] += clip(dL_dz5 * H[timestep][i]);
+            dbh[i] += clip(dL_dz_t);
             for(int j = 0; j < 3; ++j){
-                dW[i][j] += dL_dz_t * X[timestep][j];
+                dW[i][j] += clip(dL_dz_t * X[timestep][j]);
             }
             for(int j = 0; j < 4; ++j){
-                if(timestep != 0) dU[i][j] += dL_dz_t * H[timestep-1][j];
-                else dU[i][j] += dL_dz_t * 0; //prev hidden state at first iteration = 0
+                if(timestep != 0) dU[i][j] += clip(dL_dz_t * H[timestep-1][j]);
+                // else dU[i][j] += dL_dz_t * 0; //prev hidden state at first iteration = 0
             }
         }
     }
@@ -143,34 +149,40 @@ int main(){
                 statecalc(Xseq[j], m);
                 brakeornobrake(m);
             }
-            Lossfunction(output, lbl[j]);
+            float loss = Lossfunction(output, lbl[j]);
+            cout << "Epoch " << i << " | Loss: " << loss << " | Output: " << output << endl;
             update(lbl[j], Xseq[j]);
+            for(int k = 0; k < 5; ++k){
+                for(int l = 0; l < 4; ++l){
+                    H[k][l] = 0;
+                }
+            }
         }
     }
     // if(1 - output < 0.05) Applybrake(); //Applybrake() is pseudo code for gate manipulation
-    if(isTrained) cout << "model is trained"; 
+    if(isTrained()) cout << "model is trained"; 
     else cout << "Motherfucker";
-    cout << "W" << endl;
-    for(int i = 0; i < 4; ++i){
-        for(int j = 0; j < 3; ++j){
-            cout << W[i][j] << " " << endl;
-        }
-    }
-    cout << "U" << endl;
-    for(int i = 0; i < 4; ++i){
-        for(int j = 0; j < 4; ++j){
-            cout << U[i][j] << " " << endl;
-        }
-    }
-    cout << "V" << endl;
-    for(int i = 0; i < 4; ++i){
-        cout << V[i] << " " << endl;
-    }
-    cout << "biashidden" << endl; 
-    for(int i = 0; i < 4; ++i){
-        cout << biashidden[i] << " " << endl;
-    } 
-    cout << "biaslast" << endl;
-    cout << biaslast << " " << endl;
+    // cout << "W" << endl;
+    // for(int i = 0; i < 4; ++i){
+    //     for(int j = 0; j < 3; ++j){
+    //         cout << W[i][j] << " " << endl;
+    //     }
+    // }
+    // cout << "U" << endl;
+    // for(int i = 0; i < 4; ++i){
+    //     for(int j = 0; j < 4; ++j){
+    //         cout << U[i][j] << " " << endl;
+    //     }
+    // }
+    // cout << "V" << endl;
+    // for(int i = 0; i < 4; ++i){
+    //     cout << V[i] << " " << endl;
+    // }
+    // cout << "biashidden" << endl; 
+    // for(int i = 0; i < 4; ++i){
+    //     cout << biashidden[i] << " " << endl;
+    // } 
+    // cout << "biaslast" << endl;
+    // cout << biaslast << " " << endl;
     return 0;
 }
